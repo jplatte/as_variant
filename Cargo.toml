@@ -1,0 +1,9 @@
+[package]
+name = "as_variant"
+version = "1.0.0"
+edition = "2021"
+description = "A simple macro to convert enums with newtype variants to `Option`s"
+categories = ["no-std"]
+keywords = ["macro"]
+repository = "https://github.com/jplatte/as_variant"
+license = "MPL-2.0"
