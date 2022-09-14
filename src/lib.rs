@@ -3,10 +3,58 @@
 
 /// Convert the given enum value to `Option`.
 ///
-/// The second argument must be one or more `|`-separated newtype (one-element tuple) variants that
-/// should be converted to `Some(_)`. Any other variants of the enum will be converted to `None`.
+/// There are two syntactic forms to this macro:
 ///
-/// # Examples
+/// 1. Enum expression followed by a comma and then one or more `|`-separated newtype (one-element
+///    tuple) variants names that should be converted to `Some(_)`. Any other variants of the enum
+///    will be converted to `None`.
+///
+///    ```no_run
+///    # use as_variant::as_variant;
+///    enum Result<T, E> {
+///        Ok(T),
+///        Err(E),
+///    }
+///
+///    impl<T, E> Result<T, E> {
+///        pub fn ok(self) -> Option<T> {
+///            as_variant!(self, Self::Ok)
+///        }
+///    }
+///    ```
+/// 2. Enum expression followed by a comma, then a pattern matching one or more variants of that
+///    enum and possibly capturing variables, then a fat right arrow followed by an expression that
+///    will be put inside `Some(_)` if the pattern matches. If the pattern doesn't match, `None`
+///    will be returned.
+///
+///    ```no_run
+///    # use std::{
+///    #     net::{Ipv4Addr, Ipv6Addr},
+///    #     path::PathBuf,
+///    # };
+///    # use as_variant::as_variant;
+///    enum ListenConfig {
+///        Ipv4 { addr: Ipv4Addr, port: u16 },
+///        Ipv6 { addr: Ipv6Addr, port: u16 },
+///        Unix { path: PathBuf },
+///    }
+///
+///    impl ListenConfig {
+///        fn port(&self) -> Option<u16> {
+///            as_variant!(self, Self::Ipv4 { port, .. } | Self::Ipv6 { port, .. } => *port)
+///        }
+///
+///        fn privileged_port(&self) -> Option<u16> {
+///            as_variant!(
+///                self,
+///                // using a guard after the pattern also works:    vvvvvvvvvvvvvvv
+///                Self::Ipv4 { port, .. } | Self::Ipv6 { port, .. } if *port < 1024 => *port,
+///            )
+///        }
+///    }
+///    ```
+///
+/// # More Examples
 ///
 /// ```no_run
 /// use std::ops::Deref;
@@ -80,5 +128,11 @@ macro_rules! as_variant {
             $( $variants(inner) )|* => ::core::option::Option::Some(inner),
             _ => ::core::option::Option::None,
         }
-    }
+    };
+    ( $enum:expr, $pattern:pat $( if $guard:expr )? => $inner:expr $(,)? ) => {
+        match $enum {
+            $pattern $( if $guard )? => ::core::option::Option::Some($inner),
+            _ => ::core::option::Option::None,
+        }
+    };
 }
