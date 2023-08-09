@@ -3,11 +3,11 @@
 
 /// Convert the given enum value to `Option`.
 ///
-/// There are two syntactic forms to this macro:
+/// There are two main syntactic forms to this macro:
 ///
-/// 1. Enum expression followed by a comma and then one or more `|`-separated newtype (one-element
-///    tuple) variants names that should be converted to `Some(_)`. Any other variants of the enum
-///    will be converted to `None`.
+/// 1. Variants: Enum expression followed by a comma and then one or more `|`-separated newtype
+///    (one-element tuple) variants paths that should be converted to `Some(_)`. Any other variants
+///    of the enum will be converted to `None`.
 ///
 ///    ```no_run
 ///    # use as_variant::as_variant;
@@ -22,10 +22,10 @@
 ///        }
 ///    }
 ///    ```
-/// 2. Enum expression followed by a comma, then a pattern matching one or more variants of that
-///    enum and possibly capturing variables, then a fat right arrow followed by an expression that
-///    will be put inside `Some(_)` if the pattern matches. If the pattern doesn't match, `None`
-///    will be returned.
+/// 2. Match arm: Enum expression followed by a comma, then a pattern matching one or more variants
+///    of that enum and possibly capturing variables, then a fat right arrow followed by an
+///    expression that will be put inside `Some(_)` if the pattern matches. If the pattern doesn't
+///    match, `None` will be returned.
 ///
 ///    ```no_run
 ///    # use std::{
@@ -53,6 +53,19 @@
 ///        }
 ///    }
 ///    ```
+///
+/// The enum expression at the start can also be left out, which causes that `as_variant!`
+/// invocation to expand to a closure that does the same thing. That is,
+/// `as_variant!(<variants or match arm>)` is the same as
+/// `|val| as_variant!(val, <variants or match arm>)`. This is especially useful for combinators,
+/// for example [`Option::and_then`] or [`Iterator::filter_map`]:
+///
+/// ```rust
+/// # use std::net::IpAddr;
+/// # use as_variant::as_variant;
+/// let optional_ip_addr = Some("127.0.0.1".parse::<IpAddr>().unwrap());
+/// let optional_ipv4_addr = optional_ip_addr.and_then(as_variant!(IpAddr::V4));
+/// ```
 ///
 /// # More Examples
 ///
@@ -134,5 +147,11 @@ macro_rules! as_variant {
             $pattern $( if $guard )? => ::core::option::Option::Some($inner),
             _ => ::core::option::Option::None,
         }
+    };
+    ( $( $variants:path )|* ) => {
+        |_enum| $crate::as_variant!(_enum, $($variants)|* )
+    };
+    ( $pattern:pat $( if $guard:expr )? => $inner:expr $(,)? ) => {
+        |_enum| $crate::as_variant!(_enum, $pattern $( if $guard )? => $inner)
     };
 }
