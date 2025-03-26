@@ -136,15 +136,15 @@
 /// ```
 #[macro_export]
 macro_rules! as_variant {
-    ( $enum:expr, $( $variants:path )|* ) => {
-        match $enum {
-            $( $variants(inner) )|* => ::core::option::Option::Some(inner),
-            _ => ::core::option::Option::None,
-        }
-    };
     ( $enum:expr, $pattern:pat $( if $guard:expr )? => $inner:expr $(,)? ) => {
         match $enum {
             $pattern $( if $guard )? => ::core::option::Option::Some($inner),
+            _ => ::core::option::Option::None,
+        }
+    };
+    ( $enum:expr, $( $variants:path )|* ) => {
+        match $enum {
+            $( $variants(inner) )|* => ::core::option::Option::Some(inner),
             _ => ::core::option::Option::None,
         }
     };
@@ -154,4 +154,31 @@ macro_rules! as_variant {
     ( $pattern:pat $( if $guard:expr )? => $inner:expr $(,)? ) => {
         |_enum| $crate::as_variant!(_enum, $pattern $( if $guard )? => $inner)
     };
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    #[allow(dead_code)]
+    fn smoke_test() {
+        struct A {
+            field: u32,
+        }
+        struct B;
+        struct C;
+
+        enum Alphabet {
+            A(A),
+            B(B),
+            C(C),
+        }
+
+        let letter = Alphabet::A(A { field: 42 });
+
+        let a = as_variant!(&letter, Alphabet::A).unwrap();
+        assert_eq!(a.field, 42);
+
+        let field = as_variant!(&letter, Alphabet::A(A { field }) => field).unwrap();
+        assert_eq!(*field, 42);
+    }
 }
